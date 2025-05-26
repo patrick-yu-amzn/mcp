@@ -9,6 +9,22 @@
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions
 # and limitations under the License.
 
-"""awslabs.eks-mcp-server"""
+"""Base handler for Amazon EKS operations in the EKS MCP Server."""
 
-__version__ = '0.1.0'
+from awslabs.eks_mcp_server.aws_helper import AwsHelper
+
+
+class EksBaseHandler:
+    """Base handler for Amazon EKS operations in the EKS MCP Server.
+
+    This class provides common functionality for EKS operations.
+    """
+
+    def __init__(self, mcp):
+        """Initialize the EKS base handler.
+
+        Args:
+            mcp: The MCP server instance
+        """
+        self.mcp = mcp
+        self.eks_client = AwsHelper.create_boto3_client('eks')
