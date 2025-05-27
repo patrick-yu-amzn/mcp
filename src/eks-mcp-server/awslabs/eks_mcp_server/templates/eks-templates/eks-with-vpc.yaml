@@ -365,6 +365,11 @@ Resources:
   # EKS Auto Mode Cluster
   EksCluster:
     Type: AWS::EKS::Cluster
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_58
+            comment: "Secrets encryption is enabled by default in EKS 1.27+"
     Properties:
       Name:
         Ref: ClusterName
