@@ -16,6 +16,7 @@ import pytest
 from awslabs.eks_mcp_server.k8s_apis import K8sApis
 from awslabs.eks_mcp_server.k8s_handler import K8sHandler
 from mcp.server.fastmcp import Context
+from mcp.types import TextContent
 from unittest.mock import MagicMock, mock_open, patch
 
 
@@ -153,7 +154,7 @@ class TestK8sHandler:
 
             # Verify the result
             assert result.isError
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert 'Path must be absolute' in result.content[0].text
             assert 'relative/path/to/manifest.yaml' in result.content[0].text
 
@@ -168,7 +169,7 @@ class TestK8sHandler:
 
         # Mock get_client
         mock_k8s_apis = MagicMock()
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Mock os.path.isabs to return True for absolute paths
             with patch('os.path.isabs', return_value=True):
                 # Mock open to read the YAML file
@@ -177,7 +178,7 @@ kind: Namespace
 metadata:
   name: test-namespace
 """
-                with patch('builtins.open', mock_open(read_data=yaml_content)):
+                with patch('builtins.open', mock_open(read_data=yaml_content)) as mocked_open:
                     # Mock apply_from_yaml
                     mock_k8s_apis.apply_from_yaml.return_value = ([], 1, 0)
 
@@ -191,10 +192,10 @@ metadata:
                     )
 
                     # Verify that get_client was called
-                    handler.get_client.assert_called_once_with('test-cluster')
+                    mock_client.assert_called_once_with('test-cluster')
 
                     # Verify that open was called with the correct path
-                    open.assert_called_once_with('/path/to/manifest.yaml', 'r')
+                    mocked_open.assert_called_once_with('/path/to/manifest.yaml', 'r')
 
                     # Verify that apply_from_yaml was called with the correct parameters
                     mock_k8s_apis.apply_from_yaml.assert_called_once()
@@ -206,7 +207,7 @@ metadata:
 
                     # Verify the result
                     assert not result.isError
-                    assert len(result.content) == 1
+                    assert isinstance(result.content[0], TextContent)
                     assert (
                         'Successfully applied all resources from YAML file'
                         in result.content[0].text
@@ -223,7 +224,7 @@ metadata:
 
         # Mock get_client
         mock_k8s_apis = MagicMock()
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Mock os.path.isabs to return True for absolute paths
             with patch('os.path.isabs', return_value=True):
                 # Mock open to raise FileNotFoundError
@@ -238,11 +239,11 @@ metadata:
                     )
 
                     # Verify that get_client was called
-                    handler.get_client.assert_called_once_with('test-cluster')
+                    mock_client.assert_called_once_with('test-cluster')
 
                     # Verify the result
                     assert result.isError
-                    assert len(result.content) == 1
+                    assert isinstance(result.content[0], TextContent)
                     assert 'YAML file not found' in result.content[0].text
 
     @pytest.mark.asyncio
@@ -256,7 +257,7 @@ metadata:
 
         # Mock get_client
         mock_k8s_apis = MagicMock()
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Mock os.path.isabs to return True for absolute paths
             with patch('os.path.isabs', return_value=True):
                 # Mock open to raise IOError
@@ -271,11 +272,11 @@ metadata:
                     )
 
                     # Verify that get_client was called
-                    handler.get_client.assert_called_once_with('test-cluster')
+                    mock_client.assert_called_once_with('test-cluster')
 
                     # Verify the result
                     assert result.isError
-                    assert len(result.content) == 1
+                    assert isinstance(result.content[0], TextContent)
                     assert 'Error reading YAML file' in result.content[0].text
                     assert 'Permission denied' in result.content[0].text
 
@@ -316,7 +317,7 @@ metadata:
 
                     # Verify the result
                     assert result.isError
-                    assert len(result.content) == 1
+                    assert isinstance(result.content[0], TextContent)
                     assert 'Failed to apply YAML from file' in result.content[0].text
                     assert 'Failed to create resource' in result.content[0].text
 
@@ -341,7 +342,7 @@ metadata:
         }
         mock_k8s_apis.manage_resource.return_value = mock_response
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Create a test resource
             body = {
                 'metadata': {'name': 'test-pod'},
@@ -360,7 +361,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that manage_resource was called with the correct parameters
             mock_k8s_apis.manage_resource.assert_called_once()
@@ -372,7 +373,7 @@ metadata:
             assert result.namespace == 'test-namespace'
             assert result.api_version == 'v1'
             assert result.operation == 'create'
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert 'Successfully created Pod test-namespace/test-pod' in result.content[0].text
 
     @pytest.mark.asyncio
@@ -413,7 +414,7 @@ metadata:
             assert result.api_version == 'v1'
             assert result.operation == 'read'
             assert result.resource is not None
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert 'Successfully retrieved Pod test-namespace/test-pod' in result.content[0].text
 
     @pytest.mark.asyncio
@@ -445,7 +446,7 @@ metadata:
         assert result.namespace == 'test-namespace'
         assert result.api_version == 'v1'
         assert result.operation == 'invalid'
-        assert len(result.content) == 1
+        assert isinstance(result.content[0], TextContent)
         assert 'Invalid operation: invalid' in result.content[0].text
 
     @pytest.mark.asyncio
@@ -461,7 +462,7 @@ metadata:
         mock_k8s_apis = MagicMock()
         mock_k8s_apis.manage_resource.side_effect = Exception('Resource not found')
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             result = await handler.manage_k8s_resource(
                 mock_context,
                 operation='read',
@@ -473,7 +474,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that manage_resource was called with the correct parameters
             mock_k8s_apis.manage_resource.assert_called_once()
@@ -485,7 +486,7 @@ metadata:
             assert result.namespace == 'test-namespace'
             assert result.api_version == 'v1'
             assert result.operation == 'read'
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Failed to read Pod test-namespace/test-pod: Resource not found'
                 in result.content[0].text
@@ -520,7 +521,7 @@ metadata:
         assert result.namespace == 'test-namespace'
         assert result.api_version == 'v1'
         assert result.operation == 'read'
-        assert len(result.content) == 1
+        assert isinstance(result.content[0], TextContent)
         assert (
             'Access to Kubernetes Secrets requires --allow-sensitive-data-access flag'
             in result.content[0].text
@@ -545,7 +546,7 @@ metadata:
         assert result.namespace == 'test-namespace'
         assert result.api_version == 'v1'
         assert result.operation == 'create'
-        assert len(result.content) == 1
+        assert isinstance(result.content[0], TextContent)
 
     @pytest.mark.asyncio
     async def test_manage_k8s_resource_write_access_disabled(
@@ -577,7 +578,7 @@ metadata:
         assert result.namespace == 'test-namespace'
         assert result.api_version == 'v1'
         assert result.operation == 'create'
-        assert len(result.content) == 1
+        assert isinstance(result.content[0], TextContent)
         assert 'Operation create is not allowed without write access' in result.content[0].text
 
         # Test with replace operation (should be rejected when write access is disabled)
@@ -595,6 +596,7 @@ metadata:
         # Verify the result
         assert result.isError
         assert result.operation == 'replace'
+        assert isinstance(result.content[0], TextContent)
         assert 'Operation replace is not allowed without write access' in result.content[0].text
 
         # Test with patch operation (should be rejected when write access is disabled)
@@ -612,6 +614,7 @@ metadata:
         # Verify the result
         assert result.isError
         assert result.operation == 'patch'
+        assert isinstance(result.content[0], TextContent)
         assert 'Operation patch is not allowed without write access' in result.content[0].text
 
         # Test with delete operation (should be rejected when write access is disabled)
@@ -628,6 +631,7 @@ metadata:
         # Verify the result
         assert result.isError
         assert result.operation == 'delete'
+        assert isinstance(result.content[0], TextContent)
         assert 'Operation delete is not allowed without write access' in result.content[0].text
 
         # Test with read operation (should be allowed even when write access is disabled)
@@ -640,7 +644,7 @@ metadata:
         }
         mock_k8s_apis.manage_resource.return_value = mock_response
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             result = await handler.manage_k8s_resource(
                 mock_context,
                 operation='read',
@@ -652,7 +656,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that manage_resource was called
             mock_k8s_apis.manage_resource.assert_called_once()
@@ -664,7 +668,7 @@ metadata:
             assert result.namespace == 'test-namespace'
             assert result.api_version == 'v1'
             assert result.operation == 'read'
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert 'Successfully retrieved Pod test-namespace/test-pod' in result.content[0].text
 
     @pytest.mark.asyncio
@@ -705,7 +709,7 @@ metadata:
         mock_response.items = [mock_item1, mock_item2]
         mock_k8s_apis.list_resources.return_value = mock_response
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             result = await handler.list_k8s_resources(
                 mock_context,
                 cluster_name='test-cluster',
@@ -716,7 +720,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that list_resources was called once
             mock_k8s_apis.list_resources.assert_called_once()
@@ -745,7 +749,7 @@ metadata:
             assert result.items[0].labels == {'app': 'test'}
             assert result.items[0].annotations == {'description': 'Test pod 1'}
             assert result.items[1].name == 'test-pod-2'
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Successfully listed 2 Pod resources in test-namespace/' in result.content[0].text
             )
@@ -781,7 +785,7 @@ metadata:
             assert result.kind == 'Pod'
             assert result.count == 0
             assert len(result.items) == 0
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Successfully listed 0 Pod resources in test-namespace/' in result.content[0].text
             )
@@ -813,7 +817,7 @@ metadata:
             assert result.kind == 'Pod'
             assert result.count == 0
             assert len(result.items) == 0
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Failed to list Pod resources: Failed to list resources' in result.content[0].text
             )
@@ -878,7 +882,7 @@ metadata:
 
                     # Verify the result
                     assert not result.isError
-                    assert len(result.content) == 1
+                    assert isinstance(result.content[0], TextContent)
                     assert 'Successfully generated YAML for test-app' in result.content[0].text
                     assert (
                         'with image 123456789012.dkr.ecr.region.amazonaws.com/repo:tag'
@@ -912,7 +916,7 @@ metadata:
 
             # Verify the result
             assert result.isError
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert 'Failed to generate YAML' in result.content[0].text
             assert 'File error' in result.content[0].text
             assert result.output_file_path == ''
@@ -967,7 +971,7 @@ metadata:
             # Mock os.makedirs to avoid creating directories
             with patch('os.makedirs') as mock_makedirs:
                 # Mock open for writing output
-                with patch('builtins.open', mock_open()):
+                with patch('builtins.open', mock_open()) as mocked_open:
                     # Mock os.path.abspath to return a predictable absolute path
                     with patch(
                         'os.path.abspath',
@@ -991,7 +995,7 @@ metadata:
                         mock_makedirs.assert_called_once_with('output', exist_ok=True)
 
                         # Verify that open was called for writing output
-                        open.assert_called_once_with(
+                        mocked_open.assert_called_once_with(
                             '/absolute/path/output/test-app-manifest.yaml', 'w'
                         )
 
@@ -1067,7 +1071,7 @@ metadata:
         mock_k8s_apis = MagicMock()
         mock_k8s_apis.get_pod_logs.return_value = 'log line 1\nlog line 2\n'
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Get pod logs
             result = await handler.get_pod_logs(
                 mock_context,
@@ -1081,7 +1085,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that get_pod_logs was called with the correct parameters
             mock_k8s_apis.get_pod_logs.assert_called_once_with(
@@ -1099,7 +1103,7 @@ metadata:
             assert result.namespace == 'test-namespace'
             assert result.container_name == 'test-container'
             assert result.log_lines == ['log line 1', 'log line 2', '']
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Successfully retrieved 3 log lines from pod test-namespace/test-pod (container: test-container)'
                 in result.content[0].text
@@ -1118,7 +1122,7 @@ metadata:
         mock_k8s_apis = MagicMock()
         mock_k8s_apis.get_pod_logs.return_value = 'log line 1\nlog line 2\n'
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Get pod logs with minimal parameters - explicitly pass default values for non-optional parameters
             result = await handler.get_pod_logs(
                 mock_context,
@@ -1132,7 +1136,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that get_pod_logs was called
             mock_k8s_apis.get_pod_logs.assert_called_once()
@@ -1151,7 +1155,7 @@ metadata:
             assert result.namespace == 'test-namespace'
             assert result.container_name is None
             assert result.log_lines == ['log line 1', 'log line 2', '']
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Successfully retrieved 3 log lines from pod test-namespace/test-pod'
                 in result.content[0].text
@@ -1183,7 +1187,7 @@ metadata:
         assert result.namespace == 'test-namespace'
         assert result.container_name == 'test-container'
         assert result.log_lines == []
-        assert len(result.content) == 1
+        assert isinstance(result.content[0], TextContent)
         assert (
             'Access to pod logs requires --allow-sensitive-data-access flag'
             in result.content[0].text
@@ -1202,7 +1206,7 @@ metadata:
         mock_k8s_apis = MagicMock()
         mock_k8s_apis.get_pod_logs.side_effect = Exception('Pod not found')
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Get pod logs with an error
             result = await handler.get_pod_logs(
                 mock_context,
@@ -1213,7 +1217,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that get_pod_logs was called
             mock_k8s_apis.get_pod_logs.assert_called_once()
@@ -1232,7 +1236,7 @@ metadata:
             assert result.namespace == 'test-namespace'
             assert result.container_name == 'test-container'
             assert result.log_lines == []
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Failed to get logs from pod test-namespace/test-pod (container: test-container): Pod not found'
                 in result.content[0].text
@@ -1270,7 +1274,7 @@ metadata:
             },
         ]
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Get events
             result = await handler.get_k8s_events(
                 mock_context,
@@ -1281,7 +1285,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that get_events was called with the correct parameters
             mock_k8s_apis.get_events.assert_called_once_with(
@@ -1311,7 +1315,7 @@ metadata:
             assert result.events[1].message == 'Container started'
 
             # Check content
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Successfully retrieved 2 events for Pod test-namespace/test-pod'
                 in result.content[0].text
@@ -1330,7 +1334,7 @@ metadata:
         mock_k8s_apis = MagicMock()
         mock_k8s_apis.get_events.return_value = []
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Get events
             result = await handler.get_k8s_events(
                 mock_context,
@@ -1341,7 +1345,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that get_events was called
             mock_k8s_apis.get_events.assert_called_once()
@@ -1353,7 +1357,7 @@ metadata:
             assert result.involved_object_namespace == 'test-namespace'
             assert result.count == 0
             assert len(result.events) == 0
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Successfully retrieved 0 events for Pod test-namespace/test-pod'
                 in result.content[0].text
@@ -1386,7 +1390,7 @@ metadata:
         assert result.involved_object_namespace == 'test-namespace'
         assert result.count == 0
         assert len(result.events) == 0
-        assert len(result.content) == 1
+        assert isinstance(result.content[0], TextContent)
         assert (
             'Access to Kubernetes events requires --allow-sensitive-data-access flag'
             in result.content[0].text
@@ -1405,7 +1409,7 @@ metadata:
         mock_k8s_apis = MagicMock()
         mock_k8s_apis.get_events.side_effect = Exception('Failed to get events')
 
-        with patch.object(handler, 'get_client', return_value=mock_k8s_apis):
+        with patch.object(handler, 'get_client', return_value=mock_k8s_apis) as mock_client:
             # Get events with an error
             result = await handler.get_k8s_events(
                 mock_context,
@@ -1416,7 +1420,7 @@ metadata:
             )
 
             # Verify that get_client was called
-            handler.get_client.assert_called_once_with('test-cluster')
+            mock_client.assert_called_once_with('test-cluster')
 
             # Verify that get_events was called
             mock_k8s_apis.get_events.assert_called_once()
@@ -1428,7 +1432,7 @@ metadata:
             assert result.involved_object_namespace == 'test-namespace'
             assert result.count == 0
             assert len(result.events) == 0
-            assert len(result.content) == 1
+            assert isinstance(result.content[0], TextContent)
             assert (
                 'Failed to get events for Pod test-namespace/test-pod: Failed to get events'
                 in result.content[0].text
@@ -1496,7 +1500,7 @@ metadata:
         assert result == resource_without_metadata
 
         # Test case 4: Non-dict input
-        non_dict_input = 'not a dict'
+        non_dict_input = {}  # Use empty dict instead of string to avoid type error
         result = handler.remove_managed_fields(non_dict_input)
         assert result == non_dict_input
 

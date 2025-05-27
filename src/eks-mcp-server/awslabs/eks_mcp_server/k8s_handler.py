@@ -307,6 +307,7 @@ class K8sHandler:
                     namespace=namespace,
                     api_version=api_version,
                     operation=operation,
+                    resource=None,
                 )
 
             # Check if write access is disabled and trying to perform a mutating operation
@@ -321,6 +322,7 @@ class K8sHandler:
                     namespace=namespace,
                     api_version=api_version,
                     operation=operation,
+                    resource=None,
                 )
 
             # Check if sensitive data access is disabled and trying to read Secret resources
@@ -341,6 +343,7 @@ class K8sHandler:
                     namespace=namespace,
                     api_version=api_version,
                     operation=operation,
+                    resource=None,
                 )
 
             # Get Kubernetes client for the cluster
@@ -392,7 +395,7 @@ class K8sHandler:
                     )
                 ],
                 kind=kind,
-                name=name,
+                name=name or '',
                 namespace=namespace,
                 api_version=api_version,
                 operation=operation,
@@ -414,6 +417,7 @@ class K8sHandler:
                 namespace=namespace,
                 api_version=api_version,
                 operation=operation,
+                resource=None,
             )
 
     async def list_k8s_resources(
@@ -872,7 +876,7 @@ class K8sHandler:
                 isError=True,
                 content=[TextContent(type='text', text=error_msg)],
                 involved_object_kind=kind,
-                involved_object_name=name,
+                involved_object_name=name or '',
                 involved_object_namespace=namespace,
                 count=0,
                 events=[],

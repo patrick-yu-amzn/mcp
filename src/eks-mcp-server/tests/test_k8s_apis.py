@@ -93,7 +93,7 @@ class TestK8sApisInitialization:
         """Test initialization requires CA data."""
         # Initialize K8sApis without CA data - should raise TypeError
         with pytest.raises(TypeError):
-            K8sApis('https://test-endpoint', 'test-token')
+            K8sApis('https://test-endpoint', 'test-token', None)
 
     def test_init_with_ca_data(self, mock_kubernetes_client):
         """Test initialization with CA data."""

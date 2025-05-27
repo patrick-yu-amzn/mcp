@@ -408,7 +408,7 @@ async def test_apply_yaml():
       name: test-namespace
     """
             ),
-        ),
+        ) as mocked_open,
         patch.object(handler, 'get_client') as mock_get_client,
     ):
         # Mock the K8sApis instance and its apply_from_yaml method
@@ -436,7 +436,7 @@ async def test_apply_yaml():
         assert 'Successfully applied all resources' in result.content[0].text
 
         # Verify that open was called with the correct path
-        open.assert_called_once_with('/path/to/manifest.yaml', 'r')
+        mocked_open.assert_called_once_with('/path/to/manifest.yaml', 'r')
 
         # Verify that apply_from_yaml was called with the correct parameters
         mock_k8s_apis.apply_from_yaml.assert_called_once()

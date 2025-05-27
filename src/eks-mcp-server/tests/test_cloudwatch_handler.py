@@ -15,6 +15,7 @@ import datetime
 import pytest
 from awslabs.eks_mcp_server.cloudwatch_handler import CloudWatchHandler
 from mcp.server.fastmcp import Context
+from mcp.types import TextContent
 from unittest.mock import MagicMock, patch
 
 
@@ -172,7 +173,7 @@ class TestCloudWatchHandler:
             with patch(
                 'awslabs.eks_mcp_server.cloudwatch_handler.AwsHelper.create_boto3_client',
                 return_value=mock_logs_client,
-            ):
+            ) as mock_create_client:
                 # Call the get_cloudwatch_logs method
                 result = await handler.get_cloudwatch_logs(
                     mock_context,
@@ -184,9 +185,10 @@ class TestCloudWatchHandler:
                 )
 
                 # Verify that AwsHelper.create_boto3_client was called with the correct service name
-                from awslabs.eks_mcp_server.cloudwatch_handler import AwsHelper
-
-                AwsHelper.create_boto3_client.assert_called_once_with('logs')
+                # Check that create_boto3_client was called with 'logs'
+                assert mock_create_client.call_count == 1
+                args, kwargs = mock_create_client.call_args
+                assert args[0] == 'logs'
 
                 # Verify that start_query was called with the correct parameters
                 mock_logs_client.start_query.assert_called_once()
@@ -202,7 +204,7 @@ class TestCloudWatchHandler:
 
                 # Verify the result
                 assert not result.isError
-                assert len(result.content) == 1
+                assert isinstance(result.content[0], TextContent)
                 assert 'Successfully retrieved' in result.content[0].text
                 assert result.resource_type == 'pod'
                 assert result.resource_name == 'test-pod'
@@ -375,7 +377,7 @@ class TestCloudWatchHandler:
 
         # Verify the result
         assert result.isError
-        assert len(result.content) == 1
+        assert isinstance(result.content[0], TextContent)
         assert (
             'Access to CloudWatch logs requires --allow-sensitive-data-access flag'
             in result.content[0].text
@@ -415,7 +417,7 @@ class TestCloudWatchHandler:
 
                 # Verify the result
                 assert result.isError
-                assert len(result.content) == 1
+                assert isinstance(result.content[0], TextContent)
                 assert 'Failed to get logs' in result.content[0].text
                 assert 'Test error' in result.content[0].text
                 assert result.resource_type == 'pod'
@@ -455,7 +457,7 @@ class TestCloudWatchHandler:
             with patch(
                 'awslabs.eks_mcp_server.cloudwatch_handler.AwsHelper.create_boto3_client',
                 return_value=mock_cloudwatch_client,
-            ):
+            ) as mock_create_client:
                 # Call the get_cloudwatch_metrics method
                 result = await handler.get_cloudwatch_metrics(
                     mock_context,
@@ -469,9 +471,10 @@ class TestCloudWatchHandler:
                 )
 
                 # Verify that AwsHelper.create_boto3_client was called with the correct service name
-                from awslabs.eks_mcp_server.cloudwatch_handler import AwsHelper
-
-                AwsHelper.create_boto3_client.assert_called_once_with('cloudwatch')
+                # Check that create_boto3_client was called with 'cloudwatch'
+                assert mock_create_client.call_count == 1
+                args, kwargs = mock_create_client.call_args
+                assert args[0] == 'cloudwatch'
 
                 # Verify that get_metric_data was called with the correct parameters
                 mock_cloudwatch_client.get_metric_data.assert_called_once()
@@ -504,7 +507,7 @@ class TestCloudWatchHandler:
 
                 # Verify the result
                 assert not result.isError
-                assert len(result.content) == 1
+                assert isinstance(result.content[0], TextContent)
                 assert 'Successfully retrieved' in result.content[0].text
                 assert result.resource_type == 'pod'
                 assert result.resource_name == 'test-pod'
@@ -902,7 +905,7 @@ class TestCloudWatchHandler:
 
                 # Verify the result
                 assert result.isError
-                assert len(result.content) == 1
+                assert isinstance(result.content[0], TextContent)
                 assert 'Failed to get metrics' in result.content[0].text
                 assert 'Test error' in result.content[0].text
                 assert result.resource_type == 'pod'

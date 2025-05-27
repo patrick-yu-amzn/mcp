@@ -189,7 +189,7 @@ class TestK8sClientCache:
             cache,
             '_get_cluster_credentials',
             return_value=('https://test-endpoint', 'test-token', 'test-ca-data'),
-        ):
+        ) as mock_cache:
             # Mock the K8sApis constructor
             with patch('awslabs.eks_mcp_server.k8s_client_cache.K8sApis') as mock_k8s_apis_class:
                 mock_k8s_apis = MagicMock()
@@ -199,7 +199,7 @@ class TestK8sClientCache:
                 client = cache.get_client('test-cluster')
 
                 # Verify that _get_cluster_credentials was called
-                cache._get_cluster_credentials.assert_called_once_with('test-cluster')
+                mock_cache.assert_called_once_with('test-cluster')
 
                 # Verify that K8sApis was initialized with the correct parameters
                 mock_k8s_apis_class.assert_called_once_with(
@@ -243,13 +243,15 @@ class TestK8sClientCache:
         cache._client_cache.clear()
 
         # Mock _get_cluster_credentials to return invalid credentials
-        with patch.object(cache, '_get_cluster_credentials', return_value=(None, None, None)):
+        with patch.object(
+            cache, '_get_cluster_credentials', return_value=(None, None, None)
+        ) as mock_cache:
             # Get a client - should raise ValueError
             with pytest.raises(ValueError, match='Invalid cluster credentials'):
                 cache.get_client('test-cluster')
 
             # Verify that _get_cluster_credentials was called
-            cache._get_cluster_credentials.assert_called_once_with('test-cluster')
+            mock_cache.assert_called_once_with('test-cluster')
 
             # Verify that the client was not cached
             assert 'test-cluster' not in cache._client_cache
@@ -263,13 +265,15 @@ class TestK8sClientCache:
         cache._client_cache.clear()
 
         # Mock _get_cluster_credentials to raise an exception
-        with patch.object(cache, '_get_cluster_credentials', side_effect=Exception('Test error')):
+        with patch.object(
+            cache, '_get_cluster_credentials', side_effect=Exception('Test error')
+        ) as mock_cache:
             # Get a client - should raise Exception
             with pytest.raises(Exception, match='Failed to get cluster credentials: Test error'):
                 cache.get_client('test-cluster')
 
             # Verify that _get_cluster_credentials was called
-            cache._get_cluster_credentials.assert_called_once_with('test-cluster')
+            mock_cache.assert_called_once_with('test-cluster')
 
             # Verify that the client was not cached
             assert 'test-cluster' not in cache._client_cache
@@ -345,14 +349,18 @@ class TestK8sClientCache:
         mock_sts_client.generate_presigned_url.return_value = 'https://test-presigned-url'
 
         # Mock the _get_eks_client and _get_sts_client methods
-        with patch.object(cache, '_get_eks_client', return_value=mock_eks_client):
-            with patch.object(cache, '_get_sts_client', return_value=mock_sts_client):
+        with patch.object(
+            cache, '_get_eks_client', return_value=mock_eks_client
+        ) as mocked_eks_client:
+            with patch.object(
+                cache, '_get_sts_client', return_value=mock_sts_client
+            ) as mocked_sts_client:
                 # Get cluster credentials
                 endpoint, token, ca_data = cache._get_cluster_credentials('test-cluster')
 
                 # Verify that _get_eks_client and _get_sts_client were called
-                cache._get_eks_client.assert_called_once()
-                cache._get_sts_client.assert_called_once()
+                mocked_eks_client.assert_called_once()
+                mocked_sts_client.assert_called_once()
 
                 # Verify that describe_cluster was called with the correct parameters
                 mock_eks_client.describe_cluster.assert_called_once_with(name='test-cluster')
@@ -382,13 +390,13 @@ class TestK8sClientCache:
         mock_eks_client.describe_cluster.side_effect = Exception('Test error')
 
         # Mock the _get_eks_client method
-        with patch.object(cache, '_get_eks_client', return_value=mock_eks_client):
+        with patch.object(cache, '_get_eks_client', return_value=mock_eks_client) as mock_client:
             # Get cluster credentials - should raise Exception
             with pytest.raises(Exception, match='Test error'):
                 cache._get_cluster_credentials('test-cluster')
 
             # Verify that _get_eks_client was called
-            cache._get_eks_client.assert_called_once()
+            mock_client.assert_called_once()
 
             # Verify that describe_cluster was called with the correct parameters
             mock_eks_client.describe_cluster.assert_called_once_with(name='test-cluster')
@@ -408,13 +416,13 @@ class TestK8sClientCache:
         }
 
         # Mock the _get_eks_client method
-        with patch.object(cache, '_get_eks_client', return_value=mock_eks_client):
+        with patch.object(cache, '_get_eks_client', return_value=mock_eks_client) as mock_client:
             # Get cluster credentials - should raise KeyError
             with pytest.raises(KeyError):
                 cache._get_cluster_credentials('test-cluster')
 
             # Verify that _get_eks_client was called
-            cache._get_eks_client.assert_called_once()
+            mock_client.assert_called_once()
 
             # Verify that describe_cluster was called with the correct parameters
             mock_eks_client.describe_cluster.assert_called_once_with(name='test-cluster')

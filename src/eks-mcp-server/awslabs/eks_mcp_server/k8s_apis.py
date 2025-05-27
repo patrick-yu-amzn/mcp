@@ -54,10 +54,11 @@ class K8sApis:
                     ca_cert_file.write(ca_cert_data)
                     # File is automatically closed when exiting the with block
 
-                    # Set the SSL CA cert to the temporary file path
-                    configuration.ssl_ca_cert = ca_cert_file.name
-                    # Store the path for cleanup
+                    # Store the path for cleanup and set the SSL CA cert
                     self._ca_cert_file_path = ca_cert_file.name
+                    # Set the SSL CA cert to the temporary file path
+                    # Use setattr to avoid potential attribute access issues
+                    setattr(configuration, 'ssl_ca_cert', ca_cert_file.name)
             except Exception as e:
                 # If we have a path and the file exists, clean it up
                 if (
@@ -79,7 +80,12 @@ class K8sApis:
             raise
 
     def _patch_resource(
-        self, resource, body: dict, name: str, namespace: Optional[str] = None, **kwargs
+        self,
+        resource,
+        body: Optional[Dict[str, Any]],
+        name: Optional[str],
+        namespace: Optional[str] = None,
+        **kwargs,
     ) -> Any:
         """Patch a resource with strategic merge patch, falling back to merge patch if needed.
 
@@ -436,21 +442,48 @@ class K8sApis:
         try:
             from kubernetes import client
 
-            api_versions = set()
+            api_versions: set[str] = set()
 
             # Get core API version (v1)
-            core_api = client.CoreApi(self.api_client)
-            core_version = core_api.get_api_versions()
-            api_versions.update(core_version.versions)
+            try:
+                core_api = client.CoreApi(self.api_client)
+                core_version_obj = core_api.get_api_versions()
+
+                # Extract versions safely
+                if core_version_obj is not None:
+                    # Try to get versions as a list of strings
+                    versions = getattr(core_version_obj, 'versions', None)
+                    if versions is not None and isinstance(versions, list):
+                        for version in versions:
+                            if isinstance(version, str):
+                                api_versions.add(version)
+            except Exception as e:
+                logger.warning(f'Error getting core API versions: {str(e)}')
+                raise ValueError(f'Error getting API versions: {str(e)}')
 
             # Get API groups and their preferred versions
-            apis_api = client.ApisApi(self.api_client)
-            api_groups = apis_api.get_api_versions()
+            try:
+                apis_api = client.ApisApi(self.api_client)
+                api_groups_obj = apis_api.get_api_versions()
 
-            for group in api_groups.groups:
-                # Only add the preferred version for each group
-                if group.preferred_version:
-                    api_versions.add(group.preferred_version.group_version)
+                # Extract groups safely
+                if api_groups_obj is not None:
+                    groups = getattr(api_groups_obj, 'groups', None)
+                    if groups is not None and isinstance(groups, list):
+                        for group in groups:
+                            if group is not None:
+                                # Try to get preferred version
+                                preferred_version = getattr(group, 'preferred_version', None)
+                                if preferred_version is not None:
+                                    group_version = getattr(
+                                        preferred_version, 'group_version', None
+                                    )
+                                    if group_version is not None and isinstance(
+                                        group_version, str
+                                    ):
+                                        api_versions.add(group_version)
+            except Exception as e:
+                logger.warning(f'Error getting API groups: {str(e)}')
 
             # Convert to sorted list
             return sorted(api_versions)

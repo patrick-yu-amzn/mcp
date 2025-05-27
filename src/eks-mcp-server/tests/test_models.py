@@ -17,6 +17,7 @@ from awslabs.eks_mcp_server.models import (
 )
 from mcp.types import TextContent
 from pydantic import ValidationError
+from typing import Any, cast
 
 
 class TestApplyYamlResponse:
@@ -27,6 +28,9 @@ class TestApplyYamlResponse:
         response = ApplyYamlResponse(
             isError=False,
             content=[TextContent(type='text', text='Successfully applied all resources')],
+            force_applied=False,
+            resources_created=1,
+            resources_updated=0,
         )
 
         assert response.isError is False
@@ -39,6 +43,9 @@ class TestApplyYamlResponse:
         response = ApplyYamlResponse(
             isError=True,
             content=[TextContent(type='text', text='Failed to apply YAML')],
+            force_applied=False,
+            resources_created=0,
+            resources_updated=0,
         )
 
         assert response.isError is True
@@ -48,10 +55,15 @@ class TestApplyYamlResponse:
 
     def test_apply_yaml_response_missing_required_fields(self):
         """Test that ValidationError is raised when required fields are missing."""
-        # Missing content
+        # Using cast to bypass type checking for the test
+        # We're intentionally passing an invalid value to test validation
         with pytest.raises(ValidationError):
             ApplyYamlResponse(
                 isError=False,
+                content=cast(Any, None),  # Using cast to bypass type checking
+                force_applied=False,
+                resources_created=0,
+                resources_updated=0,
             )
 
 

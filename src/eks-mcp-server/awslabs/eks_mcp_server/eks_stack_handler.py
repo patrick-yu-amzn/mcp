@@ -34,9 +34,9 @@ from awslabs.eks_mcp_server.models import (
     GenerateTemplateResponse,
 )
 from mcp.server.fastmcp import Context
-from mcp.types import CallToolResult, TextContent
+from mcp.types import EmbeddedResource, ImageContent, TextContent
 from pydantic import Field
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 
 class EksStackHandler:
@@ -161,9 +161,53 @@ class EksStackHandler:
             ]:
                 error_message = f'Operation {operation} is not allowed without write access'
                 log_with_request_id(ctx, LogLevel.ERROR, error_message)
-                return CallToolResult(
-                    isError=True, content=[TextContent(type='text', text=error_message)]
-                )
+
+                # Return appropriate response type based on operation
+                if operation == GENERATE_OPERATION:
+                    return GenerateTemplateResponse(
+                        isError=True,
+                        content=cast(
+                            List[Union[TextContent, ImageContent, EmbeddedResource]],
+                            [TextContent(type='text', text=error_message)],
+                        ),
+                        template_path='',
+                    )
+                elif operation == DEPLOY_OPERATION:
+                    return DeployStackResponse(
+                        isError=True,
+                        content=cast(
+                            List[Union[TextContent, ImageContent, EmbeddedResource]],
+                            [TextContent(type='text', text=error_message)],
+                        ),
+                        stack_name='',
+                        stack_arn='',
+                        cluster_name=cluster_name or '',
+                    )
+                elif operation == DELETE_OPERATION:
+                    return DeleteStackResponse(
+                        isError=True,
+                        content=cast(
+                            List[Union[TextContent, ImageContent, EmbeddedResource]],
+                            [TextContent(type='text', text=error_message)],
+                        ),
+                        stack_name='',
+                        stack_id='',
+                        cluster_name=cluster_name or '',
+                    )
+                else:  # Default to describe operation
+                    return DescribeStackResponse(
+                        isError=True,
+                        content=cast(
+                            List[Union[TextContent, ImageContent, EmbeddedResource]],
+                            [TextContent(type='text', text=error_message)],
+                        ),
+                        stack_name='',
+                        stack_id='',
+                        cluster_name=cluster_name or '',
+                        creation_time='',
+                        stack_status='',
+                        outputs={},
+                    )
 
             if operation == GENERATE_OPERATION:
                 if template_file is None:
@@ -212,8 +256,19 @@ class EksStackHandler:
             else:
                 error_message = f'Invalid operation: {operation}. Must be one of: generate, deploy, describe, delete'
                 log_with_request_id(ctx, LogLevel.ERROR, error_message)
-                return CallToolResult(
-                    isError=True, content=[TextContent(type='text', text=error_message)]
+                # Default to DescribeStackResponse for invalid operations
+                return DescribeStackResponse(
+                    isError=True,
+                    content=cast(
+                        List[Union[TextContent, ImageContent, EmbeddedResource]],
+                        [TextContent(type='text', text=error_message)],
+                    ),
+                    stack_name='',
+                    stack_id='',
+                    cluster_name=cluster_name or '',
+                    creation_time='',
+                    stack_status='',
+                    outputs={},
                 )
         except ValueError as e:
             # Re-raise ValueError for parameter validation errors
@@ -222,8 +277,19 @@ class EksStackHandler:
         except Exception as e:
             error_message = f'Error in manage_eks_stacks: {str(e)}'
             log_with_request_id(ctx, LogLevel.ERROR, error_message)
-            return CallToolResult(
-                isError=True, content=[TextContent(type='text', text=error_message)]
+            # Default to DescribeStackResponse for general exceptions
+            return DescribeStackResponse(
+                isError=True,
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [TextContent(type='text', text=error_message)],
+                ),
+                stack_name='',
+                stack_id='',
+                cluster_name=cluster_name or '',
+                creation_time='',
+                stack_status='',
+                outputs={},
             )
 
     async def _generate_template(
@@ -278,12 +344,15 @@ class EksStackHandler:
 
             return GenerateTemplateResponse(
                 isError=False,
-                content=[
-                    TextContent(
-                        type='text',
-                        text=f'CloudFormation template generated at {template_path} with cluster name {cluster_name}',
-                    )
-                ],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [
+                        TextContent(
+                            type='text',
+                            text=f'CloudFormation template generated at {template_path} with cluster name {cluster_name}',
+                        )
+                    ],
+                ),
                 template_path=template_path,
             )
         except Exception as e:
@@ -292,7 +361,10 @@ class EksStackHandler:
 
             return GenerateTemplateResponse(
                 isError=True,
-                content=[TextContent(type='text', text=error_message)],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [TextContent(type='text', text=error_message or 'Unknown error')],
+                ),
                 template_path='',
             )
 
@@ -319,7 +391,10 @@ class EksStackHandler:
                     if not success:
                         return DeployStackResponse(
                             isError=True,
-                            content=[TextContent(type='text', text=error_message)],
+                            content=cast(
+                                List[Union[TextContent, ImageContent, EmbeddedResource]],
+                                [TextContent(type='text', text=error_message or 'Unknown error')],
+                            ),
                             stack_name=stack_name,
                             stack_arn='',
                             cluster_name=cluster_name,
@@ -369,12 +444,15 @@ class EksStackHandler:
 
             return DeployStackResponse(
                 isError=False,
-                content=[
-                    TextContent(
-                        type='text',
-                        text=f'CloudFormation stack {operation_text} initiated. Stack {operation_text} is in progress and typically takes 15-20 minutes to complete.',
-                    )
-                ],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [
+                        TextContent(
+                            type='text',
+                            text=f'CloudFormation stack {operation_text} initiated. Stack {operation_text} is in progress and typically takes 15-20 minutes to complete.',
+                        )
+                    ],
+                ),
                 stack_name=stack_name,
                 stack_arn=response['StackId'],
                 cluster_name=cluster_name,
@@ -385,7 +463,10 @@ class EksStackHandler:
 
             return DeployStackResponse(
                 isError=True,
-                content=[TextContent(type='text', text=error_message)],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [TextContent(type='text', text=error_message or 'Unknown error')],
+                ),
                 stack_name=stack_name,
                 stack_arn='',
                 cluster_name=cluster_name,
@@ -413,7 +494,10 @@ class EksStackHandler:
 
                 return DescribeStackResponse(
                     isError=True,
-                    content=[TextContent(type='text', text=error_message)],
+                    content=cast(
+                        List[Union[TextContent, ImageContent, EmbeddedResource]],
+                        [TextContent(type='text', text=error_message or 'Unknown error')],
+                    ),
                     stack_name=stack_name,
                     stack_id=stack_id,
                     cluster_name=cluster_name,
@@ -424,8 +508,10 @@ class EksStackHandler:
 
             # Extract outputs
             outputs = {}
-            for output in stack.get('Outputs', []):
-                outputs[output['OutputKey']] = output['OutputValue']
+            if stack and 'Outputs' in stack:
+                for output in stack['Outputs']:
+                    if 'OutputKey' in output and 'OutputValue' in output:
+                        outputs[output['OutputKey']] = output['OutputValue']
 
             log_with_request_id(
                 ctx,
@@ -433,21 +519,40 @@ class EksStackHandler:
                 f'Described CloudFormation stack {stack_name} for EKS cluster {cluster_name}',
             )
 
+            # Safely extract stack details
+            stack_id = ''
+            creation_time = ''
+            stack_status = ''
+
+            if stack:
+                stack_id = stack.get('StackId', '')
+
+                # Safely handle creation time
+                if 'CreationTime' in stack:
+                    creation_time_obj = stack['CreationTime']
+                    if hasattr(creation_time_obj, 'isoformat'):
+                        creation_time = creation_time_obj.isoformat()
+                    else:
+                        creation_time = str(creation_time_obj)
+
+                stack_status = stack.get('StackStatus', '')
+
             return DescribeStackResponse(
                 isError=False,
-                content=[
-                    TextContent(
-                        type='text',
-                        text=f'Successfully described CloudFormation stack {stack_name} for EKS cluster {cluster_name}',
-                    )
-                ],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [
+                        TextContent(
+                            type='text',
+                            text=f'Successfully described CloudFormation stack {stack_name} for EKS cluster {cluster_name}',
+                        )
+                    ],
+                ),
                 stack_name=stack_name,
-                stack_id=stack['StackId'],
+                stack_id=stack_id,
                 cluster_name=cluster_name,
-                creation_time=stack['CreationTime'].isoformat()
-                if hasattr(stack['CreationTime'], 'isoformat')
-                else stack['CreationTime'],
-                stack_status=stack['StackStatus'],
+                creation_time=creation_time,
+                stack_status=stack_status,
                 outputs=outputs,
             )
         except Exception as e:
@@ -456,7 +561,10 @@ class EksStackHandler:
 
             return DescribeStackResponse(
                 isError=True,
-                content=[TextContent(type='text', text=error_message)],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [TextContent(type='text', text=error_message or 'Unknown error')],
+                ),
                 stack_name=stack_name,
                 stack_id='',
                 cluster_name=cluster_name,
@@ -483,13 +591,19 @@ class EksStackHandler:
 
                 return DeleteStackResponse(
                     isError=True,
-                    content=[TextContent(type='text', text=error_message)],
+                    content=cast(
+                        List[Union[TextContent, ImageContent, EmbeddedResource]],
+                        [TextContent(type='text', text=error_message or 'Unknown error')],
+                    ),
                     stack_name=stack_name,
                     stack_id=stack_id,
                     cluster_name=cluster_name,
                 )
 
-            stack_id = stack['StackId']
+            # Safely extract stack ID
+            stack_id = ''
+            if stack and 'StackId' in stack:
+                stack_id = stack['StackId']
 
             # Delete the stack
             cfn_client.delete_stack(StackName=stack_name)
@@ -502,12 +616,15 @@ class EksStackHandler:
 
             return DeleteStackResponse(
                 isError=False,
-                content=[
-                    TextContent(
-                        type='text',
-                        text=f'Initiated deletion of CloudFormation stack {stack_name} for EKS cluster {cluster_name}. Deletion is in progress.',
-                    )
-                ],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [
+                        TextContent(
+                            type='text',
+                            text=f'Initiated deletion of CloudFormation stack {stack_name} for EKS cluster {cluster_name}. Deletion is in progress.',
+                        )
+                    ],
+                ),
                 stack_name=stack_name,
                 stack_id=stack_id,
                 cluster_name=cluster_name,
@@ -518,7 +635,10 @@ class EksStackHandler:
 
             return DeleteStackResponse(
                 isError=True,
-                content=[TextContent(type='text', text=error_message)],
+                content=cast(
+                    List[Union[TextContent, ImageContent, EmbeddedResource]],
+                    [TextContent(type='text', text=error_message or 'Unknown error')],
+                ),
                 stack_name=stack_name,
                 stack_id='',
                 cluster_name=cluster_name,

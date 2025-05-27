@@ -34,7 +34,7 @@ class AwsHelper:
         return os.environ.get('AWS_PROFILE')
 
     @classmethod
-    def create_boto3_client(cls, service_name: str, region_name: str = None) -> Any:
+    def create_boto3_client(cls, service_name: str, region_name: Optional[str] = None) -> Any:
         """Create a boto3 client with the appropriate profile and region.
 
         Args:
@@ -45,7 +45,7 @@ class AwsHelper:
             A boto3 client for the specified service
         """
         # Get region from parameter or environment if set
-        region = region_name if region_name is not None else cls.get_aws_region()
+        region: Optional[str] = region_name if region_name is not None else cls.get_aws_region()
 
         # Get profile from environment if set
         profile = cls.get_aws_profile()
@@ -53,12 +53,12 @@ class AwsHelper:
         # Create session with profile if specified
         if profile:
             session = boto3.Session(profile_name=profile)
-            if region:
+            if region is not None:
                 return session.client(service_name, region_name=region)
             else:
                 return session.client(service_name)
         else:
-            if region:
+            if region is not None:
                 return boto3.client(service_name, region_name=region)
             else:
                 return boto3.client(service_name)

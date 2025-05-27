@@ -86,7 +86,9 @@ class TestEksStackHandler:
         mock_cfn_client.create_stack.return_value = {'StackId': 'test-stack-id'}
 
         # Mock the AwsHelper.create_boto3_client method to return our mock client
-        with patch.object(AwsHelper, 'create_boto3_client', return_value=mock_cfn_client):
+        with patch.object(
+            AwsHelper, 'create_boto3_client', return_value=mock_cfn_client
+        ) as mock_create_client:
             # Mock the _ensure_stack_ownership method to simulate stack not existing
             with patch.object(
                 handler,
@@ -106,8 +108,9 @@ class TestEksStackHandler:
 
                 # Verify that AwsHelper.create_boto3_client was called with the correct parameters
                 # Since we're mocking _ensure_stack_ownership, it's only called once in _deploy_stack
-                assert AwsHelper.create_boto3_client.call_count == 1
-                AwsHelper.create_boto3_client.assert_called_once_with('cloudformation')
+                assert mock_create_client.call_count == 1
+                args, kwargs = mock_create_client.call_args
+                assert args[0] == 'cloudformation'
 
                 # Verify that create_stack was called with the correct parameters
                 mock_cfn_client.create_stack.assert_called_once()
@@ -150,14 +153,18 @@ class TestEksStackHandler:
         }
 
         # Mock the AwsHelper.create_boto3_client method to return our mock client
-        with patch.object(AwsHelper, 'create_boto3_client', return_value=mock_cfn_client):
+        with patch.object(
+            AwsHelper, 'create_boto3_client', return_value=mock_cfn_client
+        ) as mock_create_client:
             # Call the _ensure_stack_ownership method
             success, stack, error_message = handler._ensure_stack_ownership(
                 ctx=mock_ctx, stack_name='eks-test-cluster-stack', operation='update'
             )
 
             # Verify that AwsHelper.create_boto3_client was called with the correct parameters
-            AwsHelper.create_boto3_client.assert_called_once_with('cloudformation')
+            assert mock_create_client.call_count == 1
+            args, kwargs = mock_create_client.call_args
+            assert args[0] == 'cloudformation'
 
             # Verify that describe_stacks was called with the correct parameters
             mock_cfn_client.describe_stacks.assert_called_once_with(
@@ -192,14 +199,16 @@ class TestEksStackHandler:
         }
 
         # Mock the AwsHelper.create_boto3_client method to return our mock client
-        with patch.object(AwsHelper, 'create_boto3_client', return_value=mock_cfn_client):
+        with patch.object(
+            AwsHelper, 'create_boto3_client', return_value=mock_cfn_client
+        ) as mock_create_client:
             # Call the _ensure_stack_ownership method
             success, stack, error_message = handler._ensure_stack_ownership(
                 ctx=mock_ctx, stack_name='eks-test-cluster-stack', operation='update'
             )
 
             # Verify that AwsHelper.create_boto3_client was called with the correct parameters
-            AwsHelper.create_boto3_client.assert_called_once_with('cloudformation')
+            mock_create_client.assert_called_once_with('cloudformation')
 
             # Verify that describe_stacks was called with the correct parameters
             mock_cfn_client.describe_stacks.assert_called_once_with(
@@ -228,14 +237,16 @@ class TestEksStackHandler:
         mock_cfn_client.describe_stacks.side_effect = Exception('Stack does not exist')
 
         # Mock the AwsHelper.create_boto3_client method to return our mock client
-        with patch.object(AwsHelper, 'create_boto3_client', return_value=mock_cfn_client):
+        with patch.object(
+            AwsHelper, 'create_boto3_client', return_value=mock_cfn_client
+        ) as mock_create_client:
             # Call the _ensure_stack_ownership method
             success, stack, error_message = handler._ensure_stack_ownership(
                 ctx=mock_ctx, stack_name='eks-test-cluster-stack', operation='update'
             )
 
             # Verify that AwsHelper.create_boto3_client was called with the correct parameters
-            AwsHelper.create_boto3_client.assert_called_once_with('cloudformation')
+            mock_create_client.assert_called_once_with('cloudformation')
 
             # Verify that describe_stacks was called with the correct parameters
             mock_cfn_client.describe_stacks.assert_called_once_with(
@@ -273,7 +284,9 @@ class TestEksStackHandler:
         mock_cfn_client.update_stack.return_value = {'StackId': 'test-stack-id'}
 
         # Mock the AwsHelper.create_boto3_client method to return our mock client
-        with patch.object(AwsHelper, 'create_boto3_client', return_value=mock_cfn_client):
+        with patch.object(
+            AwsHelper, 'create_boto3_client', return_value=mock_cfn_client
+        ) as mock_aws_helper:
             # Mock the open function to return a mock file
             mock_template_content = 'test template content'
             with patch('builtins.open', mock_open(read_data=mock_template_content)):
@@ -287,8 +300,8 @@ class TestEksStackHandler:
 
                 # Verify that AwsHelper.create_boto3_client was called with the correct parameters
                 # Note: It's called twice now - once for _ensure_stack_ownership and once for _deploy_stack
-                assert AwsHelper.create_boto3_client.call_count == 2
-                AwsHelper.create_boto3_client.assert_any_call('cloudformation')
+                assert mock_aws_helper.call_count == 2
+                mock_aws_helper.assert_any_call('cloudformation')
 
                 # Verify that update_stack was called with the correct parameters
                 mock_cfn_client.update_stack.assert_called_once()
@@ -349,7 +362,9 @@ class TestEksStackHandler:
         }
 
         # Mock the AwsHelper.create_boto3_client method to return our mock client
-        with patch.object(AwsHelper, 'create_boto3_client', return_value=mock_cfn_client):
+        with patch.object(
+            AwsHelper, 'create_boto3_client', return_value=mock_cfn_client
+        ) as mock_create_client:
             # Call the _describe_stack method
             result = await handler._describe_stack(
                 ctx=mock_ctx,
@@ -358,7 +373,7 @@ class TestEksStackHandler:
             )
 
             # Verify that AwsHelper.create_boto3_client was called with the correct parameters
-            AwsHelper.create_boto3_client.assert_called_once_with('cloudformation')
+            mock_create_client.assert_called_once_with('cloudformation')
 
             # Verify that describe_stacks was called with the correct parameters
             mock_cfn_client.describe_stacks.assert_called_once_with(
@@ -534,7 +549,7 @@ class TestEksStackHandler:
             content=[TextContent(type='text', text='Generated CloudFormation template')],
             template_path='/path/to/output/template.yaml',
         )
-        with patch.object(handler, '_generate_template', return_value=mock_result):
+        with patch.object(handler, '_generate_template', return_value=mock_result) as mock_handler:
             # Call the manage_eks_stacks method with generate operation
             result = await handler.manage_eks_stacks(
                 ctx=mock_ctx,
@@ -544,14 +559,17 @@ class TestEksStackHandler:
             )
 
             # Verify that _generate_template was called with the correct parameters
-            handler._generate_template.assert_called_once_with(
+            mock_handler.assert_called_once_with(
                 ctx=mock_ctx,
                 template_path='/path/to/output/template.yaml',
                 cluster_name='test-cluster',
             )
 
-            # Verify the result
+            # Verify the result is the same as the mock result
+            assert result is mock_result
             assert not result.isError
+            # Check specific attributes for GenerateTemplateResponse
+            assert isinstance(result, GenerateTemplateResponse)
             assert result.template_path == '/path/to/output/template.yaml'
             assert len(result.content) == 1
             assert result.content[0].type == 'text'
@@ -577,7 +595,7 @@ class TestEksStackHandler:
             stack_arn='test-stack-id',
             cluster_name='test-cluster',
         )
-        with patch.object(handler, '_deploy_stack', return_value=mock_result):
+        with patch.object(handler, '_deploy_stack', return_value=mock_result) as mock_handler:
             # Call the manage_eks_stacks method with deploy operation
             result = await handler.manage_eks_stacks(
                 ctx=mock_ctx,
@@ -587,7 +605,7 @@ class TestEksStackHandler:
             )
 
             # Verify that _deploy_stack was called with the correct parameters
-            handler._deploy_stack.assert_called_once_with(
+            mock_handler.assert_called_once_with(
                 ctx=mock_ctx,
                 template_file='/path/to/template.yaml',
                 stack_name='eks-test-cluster-stack',
@@ -596,6 +614,8 @@ class TestEksStackHandler:
 
             # Verify the result
             assert not result.isError
+            # Check specific attributes for DeployStackResponse
+            assert isinstance(result, DeployStackResponse)
             assert result.stack_name == 'eks-test-cluster-stack'
             assert result.stack_arn == 'test-stack-id'
             assert result.cluster_name == 'test-cluster'
@@ -626,7 +646,7 @@ class TestEksStackHandler:
             stack_status='CREATE_COMPLETE',
             outputs={},
         )
-        with patch.object(handler, '_describe_stack', return_value=mock_result):
+        with patch.object(handler, '_describe_stack', return_value=mock_result) as mock_handler:
             # Call the manage_eks_stacks method with describe operation
             result = await handler.manage_eks_stacks(
                 ctx=mock_ctx,
@@ -635,12 +655,14 @@ class TestEksStackHandler:
             )
 
             # Verify that _describe_stack was called with the correct parameters
-            handler._describe_stack.assert_called_once_with(
+            mock_handler.assert_called_once_with(
                 ctx=mock_ctx, stack_name='eks-test-cluster-stack', cluster_name='test-cluster'
             )
 
             # Verify the result
             assert not result.isError
+            # Check specific attributes for DescribeStackResponse
+            assert isinstance(result, DescribeStackResponse)
             assert result.stack_name == 'eks-test-cluster-stack'
             assert result.stack_id == 'test-stack-id'
             assert result.cluster_name == 'test-cluster'
@@ -670,7 +692,7 @@ class TestEksStackHandler:
             stack_id='test-stack-id',
             cluster_name='test-cluster',
         )
-        with patch.object(handler, '_delete_stack', return_value=mock_result):
+        with patch.object(handler, '_delete_stack', return_value=mock_result) as mock_handler:
             # Call the manage_eks_stacks method with delete operation
             result = await handler.manage_eks_stacks(
                 ctx=mock_ctx,
@@ -679,12 +701,14 @@ class TestEksStackHandler:
             )
 
             # Verify that _delete_stack was called with the correct parameters
-            handler._delete_stack.assert_called_once_with(
+            mock_handler.assert_called_once_with(
                 ctx=mock_ctx, stack_name='eks-test-cluster-stack', cluster_name='test-cluster'
             )
 
             # Verify the result
             assert not result.isError
+            # Check specific attributes for DeleteStackResponse
+            assert isinstance(result, DeleteStackResponse)
             assert result.stack_name == 'eks-test-cluster-stack'
             assert result.stack_id == 'test-stack-id'
             assert result.cluster_name == 'test-cluster'
@@ -781,7 +805,7 @@ class TestEksStackHandler:
             stack_status='CREATE_COMPLETE',
             outputs={},
         )
-        with patch.object(handler, '_describe_stack', return_value=mock_result):
+        with patch.object(handler, '_describe_stack', return_value=mock_result) as mock_handler:
             result = await handler.manage_eks_stacks(
                 ctx=mock_ctx,
                 operation='describe',
@@ -789,7 +813,7 @@ class TestEksStackHandler:
             )
 
             # Verify that _describe_stack was called (operation allowed even when write access is disabled)
-            handler._describe_stack.assert_called_once()
+            mock_handler.assert_called_once()
 
             # Verify the result
             assert not result.isError
