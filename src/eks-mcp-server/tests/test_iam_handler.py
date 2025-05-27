@@ -15,16 +15,24 @@ import json
 import pytest
 from awslabs.eks_mcp_server.iam_handler import IAMHandler
 from mcp.server.fastmcp import Context
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.asyncio
-async def test_iam_handler_initialization():
+@patch('awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client')
+async def test_iam_handler_initialization(mock_create_client):
+    # Create a mock IAM client
+    mock_iam_client = MagicMock()
+    mock_create_client.return_value = mock_iam_client
+
     # Create a mock MCP server
     mock_mcp = MagicMock()
 
     # Initialize the IAM handler with the mock MCP server
     IAMHandler(mock_mcp, allow_write=True)
+
+    # Verify that create_boto3_client was called with 'iam'
+    mock_create_client.assert_called_once_with('iam')
 
     # Verify that all tools were registered
     assert mock_mcp.tool.call_count == 2
@@ -41,12 +49,20 @@ async def test_iam_handler_initialization():
 
 
 @pytest.mark.asyncio
-async def test_get_policies_for_role():
+@patch('awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client')
+async def test_get_policies_for_role(mock_create_client):
+    # Create a mock IAM client
+    mock_iam_client = MagicMock()
+    mock_create_client.return_value = mock_iam_client
+
     # Create a mock MCP server
     mock_mcp = MagicMock()
 
     # Initialize the IAM handler with the mock MCP server
     handler = IAMHandler(mock_mcp)
+
+    # Verify that create_boto3_client was called with 'iam'
+    mock_create_client.assert_called_once_with('iam')
 
     # Create a mock context
     mock_ctx = MagicMock(spec=Context)
@@ -162,12 +178,20 @@ async def test_get_policies_for_role():
 
 
 @pytest.mark.asyncio
-async def test_add_inline_policy_existing_policy():
+@patch('awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client')
+async def test_add_inline_policy_existing_policy(mock_create_client):
+    # Create a mock IAM client
+    mock_iam_client = MagicMock()
+    mock_create_client.return_value = mock_iam_client
+
     # Create a mock MCP server
     mock_mcp = MagicMock()
 
     # Initialize the IAM handler with the mock MCP server with write access enabled
     handler = IAMHandler(mock_mcp, allow_write=True)
+
+    # Verify that create_boto3_client was called with 'iam'
+    mock_create_client.assert_called_once_with('iam')
 
     # Create a mock context
     mock_ctx = MagicMock(spec=Context)
@@ -218,12 +242,20 @@ async def test_add_inline_policy_existing_policy():
 
 
 @pytest.mark.asyncio
-async def test_add_inline_policy_new_policy():
+@patch('awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client')
+async def test_add_inline_policy_new_policy(mock_create_client):
+    # Create a mock IAM client
+    mock_iam_client = MagicMock()
+    mock_create_client.return_value = mock_iam_client
+
     # Create a mock MCP server
     mock_mcp = MagicMock()
 
     # Initialize the IAM handler with the mock MCP server with write access enabled
     handler = IAMHandler(mock_mcp, allow_write=True)
+
+    # Verify that create_boto3_client was called with 'iam'
+    mock_create_client.assert_called_once_with('iam')
 
     # Create a mock context
     mock_ctx = MagicMock(spec=Context)
@@ -273,12 +305,20 @@ async def test_add_inline_policy_new_policy():
 
 
 @pytest.mark.asyncio
-async def test_add_inline_policy_multiple_statements():
+@patch('awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client')
+async def test_add_inline_policy_multiple_statements(mock_create_client):
+    # Create a mock IAM client
+    mock_iam_client = MagicMock()
+    mock_create_client.return_value = mock_iam_client
+
     # Create a mock MCP server
     mock_mcp = MagicMock()
 
     # Initialize the IAM handler with the mock MCP server with write access enabled
     handler = IAMHandler(mock_mcp, allow_write=True)
+
+    # Verify that create_boto3_client was called with 'iam'
+    mock_create_client.assert_called_once_with('iam')
 
     # Create a mock context
     mock_ctx = MagicMock(spec=Context)

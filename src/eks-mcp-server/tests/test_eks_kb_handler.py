@@ -26,7 +26,12 @@ class TestEKSKnowledgeBaseHandler:
     """Tests for the EKSKnowledgeBaseHandler class."""
 
     @pytest.mark.asyncio
-    async def test_search_eks_troubleshoot_guide_success(self, mock_mcp):
+    @patch('awslabs.eks_mcp_server.eks_kb_handler.AWSSigV4')
+    async def test_search_eks_troubleshoot_guide_success(self, mock_aws_auth, mock_mcp):
+        # Create a mock for AWSSigV4 to prevent AWS credential access
+        mock_auth_instance = MagicMock()
+        mock_aws_auth.return_value = mock_auth_instance
+
         handler = EKSKnowledgeBaseHandler(mock_mcp)
         expected_response = 'troubleshooting steps'
         with patch('awslabs.eks_mcp_server.eks_kb_handler.requests.post') as mock_post:
@@ -39,8 +44,16 @@ class TestEKSKnowledgeBaseHandler:
             assert result == expected_response
             mock_post.assert_called_once()
 
+            # Verify that AWSSigV4 was initialized with the correct parameters
+            mock_aws_auth.assert_called_once_with('execute-api', region='us-west-2')
+
     @pytest.mark.asyncio
-    async def test_search_eks_troubleshoot_guide_error(self, mock_mcp):
+    @patch('awslabs.eks_mcp_server.eks_kb_handler.AWSSigV4')
+    async def test_search_eks_troubleshoot_guide_error(self, mock_aws_auth, mock_mcp):
+        # Create a mock for AWSSigV4 to prevent AWS credential access
+        mock_auth_instance = MagicMock()
+        mock_aws_auth.return_value = mock_auth_instance
+
         handler = EKSKnowledgeBaseHandler(mock_mcp)
         with patch('awslabs.eks_mcp_server.eks_kb_handler.requests.post') as mock_post:
             mock_post.side_effect = Exception('network error')

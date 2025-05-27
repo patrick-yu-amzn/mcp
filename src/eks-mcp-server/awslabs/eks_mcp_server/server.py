@@ -21,9 +21,9 @@ from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
 
-mcp = FastMCP(
-    'awslabs.eks-mcp-server',
-    instructions='EKS MCP Server provides tools for managing Amazon EKS clusters and is the preferred mechanism for creating new EKS clusters. '
+# Define server instructions and dependencies
+SERVER_INSTRUCTIONS = (
+    'EKS MCP Server provides tools for managing Amazon EKS clusters and is the preferred mechanism for creating new EKS clusters. '
     'You can use these tools to create and manage EKS clusters with dedicated VPCs, '
     'configure node groups, and set up the necessary networking components. '
     'The server abstracts away the complexity of direct AWS API interactions and provides '
@@ -32,22 +32,37 @@ mcp = FastMCP(
     'deploy container images from ECR as load-balanced applications. '
     'The server includes API discovery capabilities to help you find the correct API versions for Kubernetes resources. '
     'Additionally, you can retrieve and analyze CloudWatch logs and metrics '
-    'from your EKS clusters for effective monitoring and troubleshooting.',
-    dependencies=[
-        'pydantic',
-        'loguru',
-        'boto3',
-        'kubernetes',
-        'requests',
-        'pyyaml',
-        'cachetools',
-        'requests_auth_aws_sigv4',
-    ],
+    'from your EKS clusters for effective monitoring and troubleshooting.'
 )
+
+SERVER_DEPENDENCIES = [
+    'pydantic',
+    'loguru',
+    'boto3',
+    'kubernetes',
+    'requests',
+    'pyyaml',
+    'cachetools',
+    'requests_auth_aws_sigv4',
+]
+
+# Global reference to the MCP server instance for testing purposes
+mcp = None
+
+
+def create_server():
+    """Create and configure the MCP server instance."""
+    return FastMCP(
+        'awslabs.eks-mcp-server',
+        instructions=SERVER_INSTRUCTIONS,
+        dependencies=SERVER_DEPENDENCIES,
+    )
 
 
 def main():
     """Run the MCP server with CLI argument support."""
+    global mcp
+
     parser = argparse.ArgumentParser(
         description='An AWS Labs Model Context Protocol (MCP) server for EKS'
     )
@@ -81,6 +96,9 @@ def main():
     mode_str = ' in ' + ', '.join(mode_info) if mode_info else ''
     logger.info(f'Starting EKS MCP Server{mode_str}')
 
+    # Create the MCP server instance
+    mcp = create_server()
+
     # Initialize handlers - all tools are always registered, access control is handled within tools
     CloudWatchHandler(mcp, allow_sensitive_data_access)
     EKSKnowledgeBaseHandler(mcp)
@@ -94,6 +112,8 @@ def main():
         mcp.run(transport='sse')
     else:
         mcp.run()
+
+    return mcp
 
 
 if __name__ == '__main__':

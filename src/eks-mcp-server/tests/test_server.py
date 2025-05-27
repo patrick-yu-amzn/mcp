@@ -15,26 +15,31 @@ import pytest
 from awslabs.eks_mcp_server.cloudwatch_handler import CloudWatchHandler
 from awslabs.eks_mcp_server.eks_kb_handler import EKSKnowledgeBaseHandler
 from awslabs.eks_mcp_server.k8s_handler import K8sHandler
-from awslabs.eks_mcp_server.server import mcp
 from mcp.server.fastmcp import Context
 from unittest.mock import MagicMock, mock_open, patch
 
 
 @pytest.mark.asyncio
 async def test_server_initialization():
+    # Test the server initialization by creating a server instance
+    from awslabs.eks_mcp_server.server import create_server
+
+    # Create a server instance
+    server = create_server()
+
     # Test that the server is initialized with the correct name
-    assert mcp.name == 'awslabs.eks-mcp-server'
+    assert server.name == 'awslabs.eks-mcp-server'
     # Test that the server has the correct instructions
-    assert mcp.instructions is not None and 'EKS MCP Server' in mcp.instructions
+    assert server.instructions is not None and 'EKS MCP Server' in server.instructions
     # Test that the server has the correct dependencies
-    assert 'pydantic' in mcp.dependencies
-    assert 'loguru' in mcp.dependencies
-    assert 'boto3' in mcp.dependencies
+    assert 'pydantic' in server.dependencies
+    assert 'loguru' in server.dependencies
+    assert 'boto3' in server.dependencies
     # These dependencies should be added for K8sHandler and CloudWatchHandler
-    assert 'kubernetes' in mcp.dependencies
-    assert 'requests' in mcp.dependencies
-    assert 'pyyaml' in mcp.dependencies
-    assert 'cachetools' in mcp.dependencies
+    assert 'kubernetes' in server.dependencies
+    assert 'requests' in server.dependencies
+    assert 'pyyaml' in server.dependencies
+    assert 'cachetools' in server.dependencies
 
 
 @pytest.mark.asyncio
@@ -50,16 +55,23 @@ async def test_command_line_args():
             sse=False, port=6274, allow_write=False, allow_sensitive_data_access=False
         )
 
-        # Mock the run method to avoid actually running the server
-        with patch.object(mcp, 'run') as mock_run:
-            # Call the main function
-            main()
+        # Mock AWS client creation
+        mock_client = MagicMock()
+        with patch(
+            'awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client',
+            return_value=mock_client,
+        ):
+            # Mock create_server to return a mock server
+            mock_server = MagicMock()
+            with patch('awslabs.eks_mcp_server.server.create_server', return_value=mock_server):
+                # Call the main function
+                main()
 
-            # Verify that parse_args was called
-            mock_parse_args.assert_called_once()
+                # Verify that parse_args was called
+                mock_parse_args.assert_called_once()
 
-            # Verify that run was called with the correct parameters
-            mock_run.assert_called_once()
+                # Verify that run was called with the correct parameters
+                mock_server.run.assert_called_once()
 
     # Test with write access enabled
     with patch.object(argparse.ArgumentParser, 'parse_args') as mock_parse_args:
@@ -67,31 +79,40 @@ async def test_command_line_args():
             sse=False, port=6274, allow_write=True, allow_sensitive_data_access=False
         )
 
-        # Mock the run method to avoid actually running the server
-        with patch.object(mcp, 'run') as mock_run:
-            # Mock the handler initialization to verify allow_write is passed
-            with patch(
-                'awslabs.eks_mcp_server.server.CloudWatchHandler'
-            ) as mock_cloudwatch_handler:
+        # Mock AWS client creation
+        mock_client = MagicMock()
+        with patch(
+            'awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client',
+            return_value=mock_client,
+        ):
+            # Mock create_server to return a mock server
+            mock_server = MagicMock()
+            with patch('awslabs.eks_mcp_server.server.create_server', return_value=mock_server):
+                # Mock the handler initialization to verify allow_write is passed
                 with patch(
-                    'awslabs.eks_mcp_server.server.EksStackHandler'
-                ) as mock_eks_stack_handler:
-                    with patch('awslabs.eks_mcp_server.server.K8sHandler') as mock_k8s_handler:
-                        with patch('awslabs.eks_mcp_server.server.IAMHandler') as mock_iam_handler:
-                            # Call the main function
-                            main()
+                    'awslabs.eks_mcp_server.server.CloudWatchHandler'
+                ) as mock_cloudwatch_handler:
+                    with patch(
+                        'awslabs.eks_mcp_server.server.EksStackHandler'
+                    ) as mock_eks_stack_handler:
+                        with patch('awslabs.eks_mcp_server.server.K8sHandler') as mock_k8s_handler:
+                            with patch(
+                                'awslabs.eks_mcp_server.server.IAMHandler'
+                            ) as mock_iam_handler:
+                                # Call the main function
+                                main()
 
-                            # Verify that parse_args was called
-                            mock_parse_args.assert_called_once()
+                                # Verify that parse_args was called
+                                mock_parse_args.assert_called_once()
 
-                            # Verify that the handlers were initialized with correct parameters
-                            mock_cloudwatch_handler.assert_called_once_with(mcp, False)
-                            mock_eks_stack_handler.assert_called_once_with(mcp, True)
-                            mock_k8s_handler.assert_called_once_with(mcp, True, False)
-                            mock_iam_handler.assert_called_once_with(mcp, True)
+                                # Verify that the handlers were initialized with correct parameters
+                                mock_cloudwatch_handler.assert_called_once_with(mock_server, False)
+                                mock_eks_stack_handler.assert_called_once_with(mock_server, True)
+                                mock_k8s_handler.assert_called_once_with(mock_server, True, False)
+                                mock_iam_handler.assert_called_once_with(mock_server, True)
 
-                            # Verify that run was called
-                            mock_run.assert_called_once()
+                                # Verify that run was called
+                                mock_server.run.assert_called_once()
 
     # Test with sensitive data access enabled
     with patch.object(argparse.ArgumentParser, 'parse_args') as mock_parse_args:
@@ -99,31 +120,40 @@ async def test_command_line_args():
             sse=False, port=6274, allow_write=False, allow_sensitive_data_access=True
         )
 
-        # Mock the run method to avoid actually running the server
-        with patch.object(mcp, 'run') as mock_run:
-            # Mock the handler initialization to verify allow_sensitive_data_access is passed
-            with patch(
-                'awslabs.eks_mcp_server.server.CloudWatchHandler'
-            ) as mock_cloudwatch_handler:
+        # Mock AWS client creation
+        mock_client = MagicMock()
+        with patch(
+            'awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client',
+            return_value=mock_client,
+        ):
+            # Mock create_server to return a mock server
+            mock_server = MagicMock()
+            with patch('awslabs.eks_mcp_server.server.create_server', return_value=mock_server):
+                # Mock the handler initialization to verify allow_sensitive_data_access is passed
                 with patch(
-                    'awslabs.eks_mcp_server.server.EksStackHandler'
-                ) as mock_eks_stack_handler:
-                    with patch('awslabs.eks_mcp_server.server.K8sHandler') as mock_k8s_handler:
-                        with patch('awslabs.eks_mcp_server.server.IAMHandler') as mock_iam_handler:
-                            # Call the main function
-                            main()
+                    'awslabs.eks_mcp_server.server.CloudWatchHandler'
+                ) as mock_cloudwatch_handler:
+                    with patch(
+                        'awslabs.eks_mcp_server.server.EksStackHandler'
+                    ) as mock_eks_stack_handler:
+                        with patch('awslabs.eks_mcp_server.server.K8sHandler') as mock_k8s_handler:
+                            with patch(
+                                'awslabs.eks_mcp_server.server.IAMHandler'
+                            ) as mock_iam_handler:
+                                # Call the main function
+                                main()
 
-                            # Verify that parse_args was called
-                            mock_parse_args.assert_called_once()
+                                # Verify that parse_args was called
+                                mock_parse_args.assert_called_once()
 
-                            # Verify that the handlers were initialized with correct parameters
-                            mock_cloudwatch_handler.assert_called_once_with(mcp, True)
-                            mock_eks_stack_handler.assert_called_once_with(mcp, False)
-                            mock_k8s_handler.assert_called_once_with(mcp, False, True)
-                            mock_iam_handler.assert_called_once_with(mcp, False)
+                                # Verify that the handlers were initialized with correct parameters
+                                mock_cloudwatch_handler.assert_called_once_with(mock_server, True)
+                                mock_eks_stack_handler.assert_called_once_with(mock_server, False)
+                                mock_k8s_handler.assert_called_once_with(mock_server, False, True)
+                                mock_iam_handler.assert_called_once_with(mock_server, False)
 
-                            # Verify that run was called
-                            mock_run.assert_called_once()
+                                # Verify that run was called
+                                mock_server.run.assert_called_once()
 
     # Test with both write access and sensitive data access enabled
     with patch.object(argparse.ArgumentParser, 'parse_args') as mock_parse_args:
@@ -131,31 +161,40 @@ async def test_command_line_args():
             sse=False, port=6274, allow_write=True, allow_sensitive_data_access=True
         )
 
-        # Mock the run method to avoid actually running the server
-        with patch.object(mcp, 'run') as mock_run:
-            # Mock the handler initialization to verify both flags are passed
-            with patch(
-                'awslabs.eks_mcp_server.server.CloudWatchHandler'
-            ) as mock_cloudwatch_handler:
+        # Mock AWS client creation
+        mock_client = MagicMock()
+        with patch(
+            'awslabs.eks_mcp_server.aws_helper.AwsHelper.create_boto3_client',
+            return_value=mock_client,
+        ):
+            # Mock create_server to return a mock server
+            mock_server = MagicMock()
+            with patch('awslabs.eks_mcp_server.server.create_server', return_value=mock_server):
+                # Mock the handler initialization to verify both flags are passed
                 with patch(
-                    'awslabs.eks_mcp_server.server.EksStackHandler'
-                ) as mock_eks_stack_handler:
-                    with patch('awslabs.eks_mcp_server.server.K8sHandler') as mock_k8s_handler:
-                        with patch('awslabs.eks_mcp_server.server.IAMHandler') as mock_iam_handler:
-                            # Call the main function
-                            main()
+                    'awslabs.eks_mcp_server.server.CloudWatchHandler'
+                ) as mock_cloudwatch_handler:
+                    with patch(
+                        'awslabs.eks_mcp_server.server.EksStackHandler'
+                    ) as mock_eks_stack_handler:
+                        with patch('awslabs.eks_mcp_server.server.K8sHandler') as mock_k8s_handler:
+                            with patch(
+                                'awslabs.eks_mcp_server.server.IAMHandler'
+                            ) as mock_iam_handler:
+                                # Call the main function
+                                main()
 
-                            # Verify that parse_args was called
-                            mock_parse_args.assert_called_once()
+                                # Verify that parse_args was called
+                                mock_parse_args.assert_called_once()
 
-                            # Verify that the handlers were initialized with both flags
-                            mock_cloudwatch_handler.assert_called_once_with(mcp, True)
-                            mock_eks_stack_handler.assert_called_once_with(mcp, True)
-                            mock_k8s_handler.assert_called_once_with(mcp, True, True)
-                            mock_iam_handler.assert_called_once_with(mcp, True)
+                                # Verify that the handlers were initialized with both flags
+                                mock_cloudwatch_handler.assert_called_once_with(mock_server, True)
+                                mock_eks_stack_handler.assert_called_once_with(mock_server, True)
+                                mock_k8s_handler.assert_called_once_with(mock_server, True, True)
+                                mock_iam_handler.assert_called_once_with(mock_server, True)
 
-                            # Verify that run was called
-                            mock_run.assert_called_once()
+                                # Verify that run was called
+                                mock_server.run.assert_called_once()
 
 
 @pytest.mark.asyncio

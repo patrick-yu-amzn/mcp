@@ -26,7 +26,6 @@ from awslabs.eks_mcp_server.consts import (
     GENERATE_OPERATION,
     STACK_NOT_OWNED_ERROR_TEMPLATE,
 )
-from awslabs.eks_mcp_server.eks_base_handler import EksBaseHandler
 from awslabs.eks_mcp_server.logging_helper import LogLevel, log_with_request_id
 from awslabs.eks_mcp_server.models import (
     DeleteStackResponse,
@@ -40,7 +39,7 @@ from pydantic import Field
 from typing import Dict, Optional, Tuple, Union
 
 
-class EksStackHandler(EksBaseHandler):
+class EksStackHandler:
     """Handler for Amazon EKS CloudFormation stack operations.
 
     This class provides tools for creating, managing, and deleting CloudFormation
@@ -54,7 +53,7 @@ class EksStackHandler(EksBaseHandler):
             mcp: The MCP server instance
             allow_write: Whether to enable write access (default: False)
         """
-        super().__init__(mcp)
+        self.mcp = mcp
         self.allow_write = allow_write
 
         # Register tools
